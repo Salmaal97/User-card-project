@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Användkort</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5a5f9;
+        }
+
+        #card-container {
+            display: grid;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background-color: #f4b2f0; 
+        }
+
+        .card-content {
+            padding: 20px;
+        }
+
+        .card h2 {
+            margin: 0 0 10px;
+            font-size: 1.5rem;
+        }
+
+        .card button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+
+        .card button:hover {
+            background-color: #45a049;
+        }
+
+        .extra-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease;
+            opacity: 0;
+        }
+
+        .extra-info.visible {
+            max-height: 300px;
+            opacity: 1;
+        }
+
+        .error-card {
+            background-color: #ffebee;
+            padding: 20px;
+            border-radius: 8px;
+            color: #d32f2f;
+            text-align: center;
+            grid-column: 1 / -1;
+        }
+
+        .refresh-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: hsl(293, 11%, 29%);
+            color: rgb(245, 225, 225);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .country-flag {
+            margin-left: 5px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <button id="refresh-btn" class="refresh-btn">Ladda nya användare</button>
+    <div id="card-container"></div>
+
+    <script>
+        class UserFormatter {
+            static getFullName(user) {
+                return `${user.name.first} ${user.name.last}`;
+            }
+
+            static getLocation(user) {
+                return `${user.location.city}, ${user.location.country}`;
+            }
+
+            static getCountryFlag(countryCode) {
+               
+                const flags = {
+                    'US': '🇺🇸',
+                    'GB': '🇬🇧',
+                    'SE': '🇸🇪',
+                    'DE': '🇩🇪',
+                    'FR': '🇫🇷',
+                    'ES': '🇪🇸',
+                    'BR': '🇧🇷',
+                    'CA': '🇨🇦',
+                    'AU': '🇦🇺'
+                };
+                return flags[countryCode] || '🌍';
+            }
+        }
+
+        class UserCardsApp {
+            constructor() {
+                this.cardContainer = document.getElementById('card-container');
+                this.refreshBtn = document.getElementById('refresh-btn');
+                this.users = [];
+                this.expandedCards = [];
+                this.init();
+            }
+
+            async init() {
+                this.setupEventListeners();
+                await this.loadUsers();
+                this.applyGridLayout();
+            }
+
+            setupEventListeners() {
+                this.refreshBtn.addEventListener('click', () => this.loadUsers());
+            }
+
+            applyGridLayout() {
+                this.cardContainer.style.gridTemplateColumns = `repeat(auto-fill, minmax(300px, 1fr))`;
+            }
+
+            async loadUsers() {
+                try {
+                    const response = await fetch('https://randomuser.me/api/?results=3');
+                    if (!response.ok) throw new Error('API request failed');
+                    const data = await response.json();
+                    this.users = data.results;
+                    this.expandedCards = new Array(this.users.length).fill(false);
+                    this.renderCards();
+                } catch (error) {
+                    this.showError();
+                    console.error('Error loading users:', error);
+                }
+            }
+
+            showError() {
+                this.cardContainer.innerHTML = `
+                    <div class="error-card">
+                        <p>Kunde inte ladda användare. Försök igen senare.</p>
+                    </div>
+                `;
+            }
+
+            renderCards() {
+                this.cardContainer.innerHTML = '';
+                
+                this.users.forEach((user, index) => {
+                    const card = this.createUserCard(user, index);
+                    this.cardContainer.appendChild(card);
+                });
+            }
+
+            createUserCard(user, index) {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                const img = document.createElement('img');
+                img.src = user.picture.large;
+                img.alt = `Foto på ${UserFormatter.getFullName(user)}`;
+                img.onerror = () => { img.src = 'https://via.placeholder.com/300'; };
+                
+                const cardContent = document.createElement('div');
+                cardContent.className = 'card-content';
+                
+                const name = document.createElement('h2');
+                name.textContent = UserFormatter.getFullName(user);
+                
+                const button = document.createElement('button');
+                button.textContent = 'Visa mer';
+                button.addEventListener('click', () => this.toggleCard(index));
+                
+                const extraInfo = document.createElement('div');
+                extraInfo.className = 'extra-info';
+                
+                const email = document.createElement('p');
+                email.textContent = `E-post: ${user.email}`;
+                
+                const phone = document.createElement('p');
+                phone.textContent = `Telefon: ${user.phone}`;
+                
+                const location = document.createElement('p');
+                location.innerHTML = `Plats: ${UserFormatter.getLocation(user)} 
+                    <span class="country-flag">${UserFormatter.getCountryFlag(user.nat)}</span>`;
+                
+                const age = document.createElement('p');
+                age.textContent = `Ålder: ${user.dob.age} år`;
+                
+                extraInfo.appendChild(email);
+                extraInfo.appendChild(phone);
+                extraInfo.appendChild(location);
+                extraInfo.appendChild(age);
+                
+                cardContent.appendChild(name);
+                cardContent.appendChild(button);
+                cardContent.appendChild(extraInfo);
+                
+                card.appendChild(img);
+                card.appendChild(cardContent);
+                
+                return card;
+            }
+
+            toggleCard(index) {
+                this.expandedCards = this.expandedCards.map((_, i) => i === index ? !this.expandedCards[i] : false);
+                
+                const cards = document.querySelectorAll('.card');
+                cards.forEach((card, i) => {
+                    const button = card.querySelector('button');
+                    const extraInfo = card.querySelector('.extra-info');
+                    
+                    if (this.expandedCards[i]) {
+                        extraInfo.classList.add('visible');
+                        button.textContent = 'Dölj info';
+                    } else {
+                        extraInfo.classList.remove('visible');
+                        button.textContent = 'Visa mer';
+                    }
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new UserCardsApp();
+        });
+    </script>
+</body>
+</html>
